@@ -59,3 +59,29 @@ Also demonstrated above is the fact that unquote/unquotesplice can handle variab
 $x = `(1 2 ,{1 + 2} ,@{$obj->method($arg, `(sub quasi expression))});
 
 This should be relatively trivial actually but is not a direct requirement for me right now.
+
+Variable keywords should be feesible too: 
+
+$y = 'key';
+$x = `($y: 300 ,{'key' . 'built' . funCall(1,2)}: (1 2 3));
+
+yields:
+
+$y = 'key';
+$x = array($y => 300, ('key' . 'built' . funCall(1,2)) => array(1, 2, 3));
+
+Also the magical stuff php allows is still there:
+
+$x = `(1 2 key: val 3 4 5);
+
+yields: 
+
+$x = array(1, 2, 'key' => 'val', 3, 4, 5);
+
+Oh yeah I am also toying with the idea of allowing a specification of the array class you use instead of the native array so you could so things like:
+
+`(1 2 3)->map(function($x) { 
+	echo $x;
+});
+
+I should also probably consider pretty printing the code so it is doesn't turn into gnarly one-liners in the case that someone is hand editing the generated code (which is not a use case I intend, but stil..)

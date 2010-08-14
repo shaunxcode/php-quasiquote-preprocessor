@@ -1,9 +1,5 @@
 <?php
 
-function valueAtIs($array, $index, $value, $default = false) {
-	return isset($array[$index]) ? ($array[$index] == $value) : $default;
-}
-
 class QuasiPreprocessor
 {
 	private $phpCode;
@@ -11,33 +7,30 @@ class QuasiPreprocessor
 
 	public function __construct($code)
 	{
-		$this->phpCode = $this->replaceQuasiquotes($this->stripComments($this->stripFloats($this->stripStrings($code))));
+		$this->phpCode = $this->replaceQuasiquotes($this->stripComments($this->stripStrings($code)));
 	}
 
-	public function stripStrings($code, $stringType = '__STRING__', $placeHolder = true) 
+	public function stripStrings($code) 
 	{
-		$max = strlen($code);
-
-		$quoteType = $stringType == '__STRING__' ? "'" : '"';
-		
-		while(($start = strpos($code, $quoteType)) !== false){
-
-			$end = false;
-			$pos = $start;
-			$skip = false;
+		foreach(array('"', "'") as $quoteType) {		
+			$max = strlen($code);
+			while(($start = strpos($code, $quoteType)) !== false) {
+				$end = false;
+				$pos = $start;
+				$skip = false;
 	      
-			while(!$end || $pos < $max){
-	        
-				$char = $code[++$pos];
-				if($char == $quoteType && !$skip){
-					$sub = substr($code, $start, ($pos-$start)+1);
-					$key = $stringType . count($this->strings);
-					$code = str_replace($sub, $placeHolder ? $key : '', $code);
-					$this->strings[$key] = $sub;
-					$end = $pos;
-					break;
+				while(!$end || $pos < $max) {
+					$char = $code[++$pos];
+					if($char == $quoteType && !$skip){
+						$sub = substr($code, $start, ($pos - $start) + 1);
+						$key = '__STRING__' . count($this->strings);
+						$code = str_replace($sub, $key, $code);
+						$this->strings[$key] = $sub;
+						$end = $pos;
+						break;
+					}
+					$skip = ($char == '\\');
 				}
-				$skip = ($char =='\\');
 			}
 		}
 		return $code;
@@ -48,11 +41,6 @@ class QuasiPreprocessor
 		return $code;
 	}
 	
-	private function stripFloats($code)
-	{
-		return $code;
-	}
-
 	public function asPhp()
 	{
 		return str_replace(array_keys($this->strings), $this->strings, $this->phpCode);
@@ -80,7 +68,7 @@ class QuasiPreprocessor
 					$open--;
 					if($open == 0) {
 						$sub = substr($code, $start, ($pos-$start)+1);
-						$code = str_replace($sub, $this->parse($this->tokenize(substr($sub, 2, -1))), $code);
+						$code = str_replace($sub, $this->process($this->tokenize(substr($sub, 2, -1))), $code);
 						$end = $pos;
 						break;
 					} 
@@ -99,19 +87,28 @@ class QuasiPreprocessor
 					' + ', 
 					' ', 
 					str_replace(
-						array('(', ')', '`', '@', ','), 
-						array(' ( ', ' ) ', ' ` ', ' @ ', ' , '), 
+						array('(', ')', '`', '@', ',' , ':', "\n", "\t"), 
+						array(' ( ', ' ) ', ' ` ', ' @ ', ' , ', ' : ', ' ', ' '), 
 						$code))));
 	}
 
-	private function parse($tokens, $isArray = false)
+	private function toPrimitive($node)
+	{
+		return is_null($node) ? 
+			'null' : 
+			($node['type'] == 'scalar' ? 
+				(is_numeric($node['value']) ? $node['value'] : "'{$node['value']}'") : 
+				$node['value']);
+	}
+	
+	private function process($tokens, $isArray = false)
 	{
 		$arrayValue = array();
 		$spliceList = array();
 		$index = 0;
-		foreach($tokens as $char)
+		foreach($tokens as $i => $char)
 		{
-			if($char == '(') {
+			if(!isset($array) && $char == '(') {
 				$array = array();
 				$parenCount = 1;
 				continue;
@@ -129,7 +126,7 @@ class QuasiPreprocessor
 				if($char == ')') {
 					$parenCount--;
 					if($parenCount < 1) {
-						$char = $this->parse($array, true);
+						$char = array('type' => 'array', 'value' => $this->process($array, true));
 						unset($array);
 					} else {
 						$array[] = $char;
@@ -157,6 +154,10 @@ class QuasiPreprocessor
 				}
 			}
 
+			if($char == ':') {
+				continue;
+			}
+			
 			if(isset($unquote) && isset($splice)) {
 				$spliceList[$index] = $char;
 				$char = null;
@@ -165,18 +166,34 @@ class QuasiPreprocessor
 			} else if(isset($unquote)) {
 				$char = array('type' => 'variable', 'value' => $char);
 				unset($unquote);
-			} else {
+			} else if(!is_array($char) && strpos($char, '__STRING__') === 0) {
+				$char = array('type' => 'string', 'value' => $this->strings[$char]);
+			} else if(!is_null($char) && !is_array($char)) {
 				$char = array('type' => 'scalar', 'value' => $char);
 			}
-	
+
+			if(isset($tokens[$i + 1]) && $tokens[$i + 1] == ':') {
+				$keyword = $char;
+				continue;
+			}
+
+			if(isset($keyword)) {
+				$char = array('type' => 'keyvalue', 'key' => $keyword, 'value' => $char); 
+				unset($keyword);
+			}
+
 			$arrayValue[$index++] = $char;	
 		}
 
 		foreach($arrayValue as $index => $node) {
-			$arrayValue[$index] = is_null($node) ? 'null' : ($node['type'] == 'scalar' ? "'{$node['value']}'" : $node['value']);
+			if(is_array($node) && $node['type'] == 'keyvalue') {
+				$arrayValue[$index] = $this->toPrimitive($node['key']) . ' => ' . $this->toPrimitive($node['value']);
+			} else {
+				$arrayValue[$index] = $this->toPrimitive($node);
+			}
 		}
 
-		$arrayValue = 'array(' . implode(',', $arrayValue) . ')';
+		$arrayValue = 'array(' . implode(', ', $arrayValue) . ')';
 
 		if(!empty($spliceList)) {
 			$spliceList = array_reverse($spliceList, true);
