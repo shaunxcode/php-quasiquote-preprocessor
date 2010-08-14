@@ -51,14 +51,12 @@ class QuasiPreprocessor
 		$max = strlen($code);
 		
 		while(($start = strpos($code, '`')) !== false){
-
 			$end = false;
 			$pos = $start;
 			$open = 0;	      
 
 			while(!$end || $pos < $max) {
-	        		
-				$char = $code[++$pos];
+				$char = $code[++$pos];				
 				if($char == '(') {
 					$open++;
 					continue;
@@ -68,7 +66,7 @@ class QuasiPreprocessor
 					$open--;
 					if($open == 0) {
 						$sub = substr($code, $start, ($pos-$start)+1);
-						$code = str_replace($sub, $this->process($this->tokenize(substr($sub, 2, -1))), $code);
+						$code = str_replace($sub, $this->process($this->tokenize($this->replaceNativePhp(substr($sub, 2, -1)))), $code);
 						$end = $pos;
 						break;
 					} 
@@ -78,6 +76,38 @@ class QuasiPreprocessor
 		return $code;
 	}
 
+	private function replaceNativePhp($code)
+	{
+		$max = strlen($code);
+		
+		while(($start = strpos($code, '{')) !== false){
+			$end = false;
+			$pos = $start;
+			$open = 1;
+
+			while(!$end || $pos < $max) {
+				$char = $code[++$pos];
+				if($char == '{') {
+					$open++;
+					continue;
+				}
+
+				if($char == '}') {
+					$open--;
+					if($open == 0) {
+						$sub = substr($code, $start, ($pos-$start)+1);
+						$key = '__NATIVE__' . count($this->strings);
+						$code = str_replace($sub, $key, $code);
+						$this->strings[$key] = $this->replaceQuasiquotes(substr($sub, 1, -1));
+						$end = $pos;
+						break;												
+					}
+				}
+			}
+		}
+		return $code;
+	}
+	
 	private function tokenize($code)
 	{
 		return explode(
@@ -148,28 +178,27 @@ class QuasiPreprocessor
 				continue;
 			}
 
-			if(isset($unquote) || isset($splice)) {
-				if($char[0] !== '$') {
-					$char = '$' . $char;
-				}
-			}
-
 			if($char == ':') {
 				continue;
 			}
-			
-			if(isset($unquote) && isset($splice)) {
+				
+			if(!is_array($char)) {
+				if(strpos($char, '__NATIVE__') === 0) {
+					$char = array('type' => 'native', 'value' => '(' . $this->strings[$char] . ')');
+				} else if(isset($unquote)) {
+					$char = array('type' => 'variable', 'value' => $char[0] == '$' ? $char : ('$' . $char));
+					unset($unquote);
+				} else if(strpos($char, '__STRING__') === 0) {
+					$char = array('type' => 'string', 'value' => $this->strings[$char]);
+				} else if(!is_null($char)) {
+					$char = array('type' => 'scalar', 'value' => $char);
+				}
+			}
+					
+			if(isset($splice)) {
 				$spliceList[$index] = $char;
 				$char = null;
-				unset($unquote);
 				unset($splice);
-			} else if(isset($unquote)) {
-				$char = array('type' => 'variable', 'value' => $char);
-				unset($unquote);
-			} else if(!is_array($char) && strpos($char, '__STRING__') === 0) {
-				$char = array('type' => 'string', 'value' => $this->strings[$char]);
-			} else if(!is_null($char) && !is_array($char)) {
-				$char = array('type' => 'scalar', 'value' => $char);
 			}
 
 			if(isset($tokens[$i + 1]) && $tokens[$i + 1] == ':') {
@@ -198,17 +227,13 @@ class QuasiPreprocessor
 		if(!empty($spliceList)) {
 			$spliceList = array_reverse($spliceList, true);
 			foreach($spliceList as $atIndex => $value) {
-				$arrayValue = 'arraySplice(' . $arrayValue . ", $atIndex, 1, $value)";
+				$arrayValue = 'arraySplice(' . $arrayValue . ", $atIndex, 1, " . $this->toPrimitive($value) . ')';
 			}
 		}
-	
-		//echo json_encode($tokens) . "\n";	
-		//echo $arrayValue . "\n";
+
 		return $arrayValue;
 	}
 }
 
 $p = new QuasiPreprocessor(file_get_contents($argv[1]));
 echo $p->asPhp();
-
-

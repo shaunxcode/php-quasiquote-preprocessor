@@ -34,11 +34,11 @@ $people = array(
 
 as you can infer an assumption is made that any "bare word" becomes a string. Floats/numbers are treated numerically and strings are also allowed i.e. 
 
-$names = `('timmy mcolours' 67.50 sammy peter 300 'walter jensen');
+$names = `('timmy mcolours' 67.50 sammy peter 300 'walter jensen' "normal string $interpolation works");
 
 yields:
 
-$names = array('timmy mcolours', 67.50, 'sammy', 'peter', 300, 'walter jensen');
+$names = array('timmy mcolours', 67.50, 'sammy', 'peter', 300, 'walter jensen', "normal string $interpolation works");
 
 The real fun starts when you start unquoting and unquotesplicing:
 
@@ -52,15 +52,13 @@ $x = array('a', 'b', 'c');
 $z = 300;
 $q = arraySplice(arraySplice(array('1', '2', '3', null, $z, $z, null), 6, 1, $x), 3, 1, $x);
 
-Obviously not something you would want to write yourself (if you value your sanity) - and I feel it is the cause of a lot of bad php code out there in the form of looping over arrays to change their structure rather than using array_splice expressions. Wait array_splice can't be used functionally because it expects a reference thus the arraySplice wrapper function that allows life to carry on. 
+Obviously not something you would want to write yourself (if you value your sanity) - and I feel it is the cause of a lot of bad php code out there in the form of looping over arrays to change their structure rather than using array_splice expressions. Wait array_splice can't be used functionally because it expects a reference thus the arraySplice wrapper function that allows life to carry on. Also demonstrated above is the fact that unquote/unquotesplice can handle variables with or without a $ prefix. 
 
-Also demonstrated above is the fact that unquote/unquotesplice can handle variables with or without a $ prefix. A future feature I am working on is the ability to allow expressions inline w/ { } i.e. 
+Native php can be run using { }. Any php expression that returns a value is valid within the brackets. This means function calls etc. but not things like loops.
 
-$x = `(1 2 ,{1 + 2} ,@{$obj->method($arg, `(sub quasi expression))});
+$x = `(1 2 {1 + 2} ,@{$obj->method($arg, `(sub quasi expression))});
 
-This should be relatively trivial actually but is not a direct requirement for me right now.
-
-Variable keywords should be feesible too: 
+Variable keywords work as expected:
 
 $y = 'key';
 $x = `($y: 300 ,{'key' . 'built' . funCall(1,2)}: (1 2 3));
@@ -84,4 +82,14 @@ Oh yeah I am also toying with the idea of allowing a specification of the array 
 	echo $x;
 });
 
-I should also probably consider pretty printing the code so it is doesn't turn into gnarly one-liners in the case that someone is hand editing the generated code (which is not a use case I intend, but stil..)
+I should also probably consider pretty printing the code so it is doesn't turn into gnarly one-liners in the case that someone is hand editing the generated code (which is not a use case I intend, but still..)
+
+While I'm in there trying to defoul things I may as well allow:
+
+$key = 'x';
+echo `(x: 60 y: 70)[$key];
+
+yields:
+
+$key = 'x';
+echo arrayAt(array('x' => 60, 'y' => 70), $key);
