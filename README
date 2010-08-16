@@ -4,33 +4,33 @@ This obviously would conflict with the use of ` for shell commands, but really i
 
 Beyond standard quasiquote/unquote/unquote-splicing functionality some other sugar is provided. i.e. dict creation:
 
-$people = `(
-	shaun: (
-		class: person
-		pets: (
-			tofu: (class: cat color: white)
-			abby: (class: dog color: (black white))
-			schnitzel: (class: dog color: (brown black))))
-	daena: (
-		class: person
-		pets: (
-			cordelia: (class: cat color: black)
-			margret: (class: cat color: orange))))
+$people = 
+  `(shaun: 
+     (class: person
+      pets: 
+        (tofu: (class: cat color: white)
+	 abby: (class: dog color: (black white))
+	 sschnitzel: (class: dog color: (brown black))))
+    daena: 
+      (class: person
+       pets: 
+         (cordelia: (class: cat color: black)
+	  margret: (class: cat color: orange))))
 
 yields:
 
 $people = array(
-	'shaun' => array(
-		'class' => 'person',
-		'pets' => array(
-			'tofu' => array('class' => 'cat', 'color' => 'white'),
-			'abby' => array('class' => 'dog', 'color' => array('black', 'white')),
-			'schnitzel' => array('class' => 'dog', 'color' => array('brown', 'black')))),
-	'daena' => array(
-		'class' => 'person', 
-		'pets' => array(
-			'cordelia' => array('class' => 'cat', 'color' => 'black'),
-			'margret' => array('class' => 'cat', 'color' => 'orange'))));
+  'shaun' => array(
+    'class' => 'person',
+    'pets' => array(
+      'tofu' => array('class' => 'cat', 'color' => 'white'),
+      'abby' => array('class' => 'dog', 'color' => array('black', 'white')),
+      'schnitzel' => array('class' => 'dog', 'color' => array('brown', 'black')))),
+  'daena' => array(
+    'class' => 'person', 
+    'pets' => array(
+      'cordelia' => array('class' => 'cat', 'color' => 'black'),
+      'margret' => array('class' => 'cat', 'color' => 'orange'))));
 
 as you can infer an assumption is made that any "bare word" becomes a string. Floats/numbers are treated numerically and strings are also allowed i.e. 
 
