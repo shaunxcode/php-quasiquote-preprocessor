@@ -40,7 +40,7 @@ yields:
 
 $names = array('timmy mcolours', 67.50, 'sammy', 'peter', 300, 'walter jensen', "normal string $interpolation works");
 
-The real fun starts when you start unquoting and unquotesplicing:
+The real fun starts when you start unquoting (variables prefixed with a comma (,)) and unquotesplicing (variables/expressions prefixed with a comma and then an at sign (,@)):
 
 $x = `(a b c);
 $z = 300;
@@ -54,14 +54,14 @@ $q = arraySplice(arraySplice(array('1', '2', '3', null, $z, $z, null), 6, 1, $x)
 
 Obviously not something you would want to write yourself (if you value your sanity) - and I feel it is the cause of a lot of bad php code out there in the form of looping over arrays to change their structure rather than using array_splice expressions. Wait array_splice can't be used functionally because it expects a reference thus the arraySplice wrapper function that allows life to carry on. Also demonstrated above is the fact that unquote/unquotesplice can handle variables with or without a $ prefix. 
 
-Native php can be run using { }. Any php expression that returns a value is valid within the brackets. This means function calls etc. but not things like loops.
+Native php expressions can be unquoted via { }. Any php expression that returns a value is valid within the brackets. This means function calls etc. but not things like loops.
 
 $x = `(1 2 {1 + 2} ,@{$obj->method($arg, `(sub quasi expression))});
 
 Variable keywords work as expected:
 
 $y = 'key';
-$x = `($y: 300 ,{'key' . 'built' . funCall(1,2)}: (1 2 3));
+$x = `(,y: 300 {'key' . 'built' . funCall(1,2)}: (1 2 3));
 
 yields:
 
