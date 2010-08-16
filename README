@@ -93,3 +93,15 @@ yields:
 
 $key = 'x';
 echo arrayAt(array('x' => 60, 'y' => 70), $key);
+
+You can also call a quasiquoted expression right after a function call i.e. 
+
+$x = functionCall`(arg1 arg2 ,x ,y);
+
+$z = funcionCall2`(key: ,x key2: ,y);
+
+yields:
+
+$x = functionCall(array('arg1', 'arg2', $x, $y));
+
+$z = functionCalls(array('key' => $x, 'key2' => $y));
