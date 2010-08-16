@@ -231,7 +231,7 @@ class QuasiPreprocessor
 			}
 		}
 
-		return $arrayValue;
+		return '(' . $arrayValue . ')';
 	}
 }
 
